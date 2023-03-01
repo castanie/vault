@@ -62,18 +62,26 @@ static (byte[], byte[]) DeriveEncryptKey(ReadOnlySpan<byte> password)
 static string ReadEncryptPassword()
 {
     Console.WriteLine("Enter Password:");
-    var password = Console.ReadLine();
+    var password = ReadPassword();
     Console.WriteLine("Repeat Password:");
-    var repeated = Console.ReadLine();
+    var repeated = ReadPassword();
 
     // Check:
-    if ((password != null) && (password == repeated) && (password.Length >= 8))
+    if (password == null)
     {
-        return password;
+        throw new Exception("No password entered.");
+    }
+    else if (password != repeated)
+    {
+        throw new Exception("Passwords didn't match.");
+    }
+    else if (password.Length < 8)
+    {
+        throw new Exception("Password not long enough.");
     }
     else
     {
-        throw new Exception("Passwords didn't match.");
+        return password;
     }
 }
 
@@ -118,15 +126,54 @@ static byte[] DeriveDecryptKey(ReadOnlySpan<byte> password, ReadOnlySpan<byte> s
 static string ReadDecryptPassword()
 {
     Console.WriteLine("Enter Password:");
-    var password = Console.ReadLine();
+    var password = ReadPassword();
 
     // Check:
-    if (password != null)
+    if (password == null)
     {
-        return password;
+        throw new Exception("No password entered.");
     }
     else
     {
-        throw new Exception("No password entered.");
+        return password;
+    }
+}
+
+// --------------------- //
+
+static string ReadPassword()
+{
+    var keys = new List<char>();
+    while (true)
+    {
+        var key = Console.ReadKey(true);
+        switch (key.Key)
+        {
+            case ConsoleKey.Backspace:
+                if (keys.Count > 0)
+                {
+                    Console.Write("\b \b");
+                    keys.RemoveAt(keys.Count - 1);
+                }
+                break;
+
+            case ConsoleKey.Tab:
+                Console.Write('\r' + new String(keys.ToArray()));
+                continue;
+
+            case ConsoleKey.Enter:
+                Console.WriteLine();
+                return new String(keys.ToArray());
+
+            case ConsoleKey.Escape:
+                Console.Write('\r' + new String(' ', keys.Count));
+                keys.Clear();
+                break;
+
+            default:
+                keys.Add(key.KeyChar);
+                break;
+        }
+        Console.Write('\r' + new String('*', keys.Count));
     }
 }
