@@ -13,7 +13,7 @@ Some files could not be located:
 
 Proceeding with other files, if any.
 "
-);
+    );
 }
 
 // Encrypt files:
@@ -147,7 +147,10 @@ static void Decrypt(string path, string password)
     // Output:
     byte[] plain_text = new byte[cipher_text.Length];
 
-    crypto_unlock(plain_text, key, nonce, mac, cipher_text);
+    if (crypto_unlock(plain_text, key, nonce, mac, cipher_text) != 0)
+    {
+        throw new Exception("Incorrect password entered.");
+    }
     File.WriteAllBytes(path, plain_text);
     File.Move(path, path[..^6]);
 }
