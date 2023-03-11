@@ -1,11 +1,14 @@
 ﻿using static Monocypher.Monocypher;
 
 
-// Check for invalid arguments:
-var invalidArgs = Array.FindAll(args, (arg) => { return !File.Exists(arg); });
-if (invalidArgs.Length > 0)
+// ---------------------------- //
+// Check for invalid arguments: //
+// ---------------------------- //
 {
-    Console.WriteLine(
+    var invalidArgs = Array.FindAll(args, (arg) => { return !File.Exists(arg); });
+    if (invalidArgs.Length > 0)
+    {
+        Console.WriteLine(
 $@"
 Some files could not be located:
 
@@ -13,60 +16,74 @@ Some files could not be located:
 
 Proceeding with other files, if any.
 "
-    );
+        );
+    }
 }
 
-// Encrypt files:
-var encryptArgs = Array.FindAll(args, (arg) => { return File.Exists(arg) && !arg.EndsWith(".vault"); });
-if (encryptArgs.Length > 0)
+
+// -------------- //
+// Encrypt files: //
+// -------------- //
 {
-    Console.ForegroundColor = ConsoleColor.DarkYellow;
-    Console.WriteLine(
+    var encryptArgs = Array.FindAll(args, (arg) => { return File.Exists(arg) && !arg.EndsWith(".vault"); });
+    if (encryptArgs.Length > 0)
+    {
+        ColorConsole.WriteLine(
 @"
 ------------------
 - ENCRYPT FILES: -
 ------------------
-"
-    );
-    Console.ResetColor();
-    var encryptPassword = ReadEncryptPassword();
-    Console.WriteLine();
+",
+            ConsoleColor.DarkYellow
+        );
+        var encryptPassword = ReadEncryptPassword();
+        Console.WriteLine();
 
-    foreach (var arg in encryptArgs)
-    {
-        Console.Write($"Processing file: \"{arg}\"");
-        Encrypt(arg, encryptPassword);
-        Console.WriteLine(" - Done!");
+        foreach (var arg in encryptArgs)
+        {
+            Console.Write($"Processing file: \"{arg}\"");
+            if (Encrypt(arg, encryptPassword)) { ColorConsole.WriteLine(" - Done!", ConsoleColor.Green); }
+            else { ColorConsole.WriteLine(" - Failed!", ConsoleColor.Red); }
+        }
     }
 }
 
-// Decrypt files:
-var decryptArgs = Array.FindAll(args, (arg) => { return File.Exists(arg) && arg.EndsWith(".vault"); });
-if (decryptArgs.Length > 0)
+
+// -------------- //
+// Decrypt files: //
+// -------------- //
 {
-    Console.ForegroundColor = ConsoleColor.DarkYellow;
-    Console.WriteLine(
+    var decryptArgs = Array.FindAll(args, (arg) => { return File.Exists(arg) && arg.EndsWith(".vault"); });
+    if (decryptArgs.Length > 0)
+    {
+        ColorConsole.WriteLine(
 @"
 ------------------
 - DECRYPT FILES: -
 ------------------
-"
-    );
-    Console.ResetColor();
-    var decryptPassword = ReadDecryptPassword();
-    Console.WriteLine();
+",
+            ConsoleColor.DarkYellow
+        );
+        var decryptPassword = ReadDecryptPassword();
+        Console.WriteLine();
 
-    foreach (var arg in decryptArgs)
-    {
-        Console.Write($"Decrypting file: \"{arg}\"");
-        Decrypt(arg, decryptPassword);
-        Console.WriteLine(" - Done!");
+        foreach (var arg in decryptArgs)
+        {
+            Console.Write($"Decrypting file: \"{arg}\"");
+            if (Decrypt(arg, decryptPassword)) { ColorConsole.WriteLine(" - Done!", ConsoleColor.Green); }
+            else { ColorConsole.WriteLine(" - Failed!", ConsoleColor.Red); }
+        }
     }
 }
 
+
+Console.WriteLine();
+
+
 // --------------------- //
 
-static void Encrypt(string path, string password)
+
+static bool Encrypt(string path, string password)
 {
     // Input:
     byte[] plain_text = File.ReadAllBytes(path);
@@ -82,6 +99,8 @@ static void Encrypt(string path, string password)
     crypto_lock(mac, cipher_text, key, nonce, plain_text);
     File.WriteAllBytes(path, salt.Concat(nonce.Concat(mac.Concat(cipher_text))).ToArray());
     File.Move(path, path + ".vault");
+
+    return true;
 }
 
 static (byte[], byte[]) DeriveEncryptKey(ReadOnlySpan<byte> password)
@@ -128,9 +147,11 @@ static string ReadEncryptPassword()
     }
 }
 
+
 // --------------------- //
 
-static void Decrypt(string path, string password)
+
+static bool Decrypt(string path, string password)
 {
     // Input:
     var content = File.ReadAllBytes(path);
@@ -147,12 +168,11 @@ static void Decrypt(string path, string password)
     // Output:
     byte[] plain_text = new byte[cipher_text.Length];
 
-    if (crypto_unlock(plain_text, key, nonce, mac, cipher_text) != 0)
-    {
-        throw new Exception("Incorrect password entered.");
-    }
+    if (crypto_unlock(plain_text, key, nonce, mac, cipher_text) != 0) { return false; }
     File.WriteAllBytes(path, plain_text);
     File.Move(path, path[..^6]);
+
+    return true;
 }
 
 static byte[] DeriveDecryptKey(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt)
@@ -186,7 +206,9 @@ static string ReadDecryptPassword()
     }
 }
 
+
 // --------------------- //
+
 
 static string ReadPassword()
 {
@@ -222,5 +244,26 @@ static string ReadPassword()
                 break;
         }
         Console.Write('\r' + new String('*', keys.Count));
+    }
+}
+
+
+// --------------------- //
+
+
+class ColorConsole
+{
+    internal static void Write(string value, ConsoleColor color)
+    {
+        Console.ForegroundColor = color;
+        Console.Write(value);
+        Console.ResetColor();
+    }
+
+    internal static void WriteLine(string value, ConsoleColor color)
+    {
+        Console.ForegroundColor = color;
+        Console.WriteLine(value);
+        Console.ResetColor();
     }
 }
